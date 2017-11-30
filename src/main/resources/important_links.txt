@@ -1,0 +1,36 @@
+//Dataset files and description
+http://stat-computing.org/dataexpo/2009/the-data.html
+
+//VARIAVEIS
+
+Year	1987-2008
+Month	1-12
+DayofMonth	1-31
+DayOfWeek	1 (Monday) - 7 (Sunday)
+DepTime	actual departure time (local, hhmm)
+CRSDepTime	scheduled departure time (local, hhmm)
+CRSArrTime	scheduled arrival time (local, hhmm)
+UniqueCarrier	unique carrier code
+CRSElapsedTime	in minutes
+ArrDelay	arrival delay, in minutes
+DepDelay	departure delay, in minutes
+Origin	origin IATA airport code
+Dest	destination IATA airport code
+Distance	in miles
+TaxiOut	taxi out time in minutes
+Cancelled	was the flight cancelled?
+CancellationCode	reason for cancellation (A = carrier, B = weather, C = NAS, D = security)
+
+
+
+//NOT BE USED
+ArrTime
+ActualElapsedTime
+AirTime
+TaxiIn
+Diverted
+CarrierDelay
+WeatherDelay
+NASDelay
+SecurityDelay
+LateAircraftDelay
