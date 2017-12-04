@@ -94,9 +94,9 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
     val DestIndx = new StringIndexer().setInputCol("Dest").setOutputCol("DestIndx")
     val UniqueCarrierIndx = new StringIndexer().setInputCol("UniqueCarrier").setOutputCol("UniqueCarrierIndx")
 
-    val df1 = OriginIndx.fit(flight_dataframe_training).transform(flight_dataframe_training)
-    val df2 = DestIndx.fit(df1).transform(df1)
-    val df3 = UniqueCarrierIndx.fit(df2).transform(df2)
+    flight_dataframe_training = OriginIndx.fit(flight_dataframe_training).transform(flight_dataframe_training)
+    flight_dataframe_training = DestIndx.fit(flight_dataframe_training).transform(flight_dataframe_training)
+    flight_dataframe_training = UniqueCarrierIndx.fit(flight_dataframe_training).transform(flight_dataframe_training)
 
 
     //Add features column
@@ -104,16 +104,18 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
       .setInputCols(Array("Month","DayOfMonth","DayOfWeek","DepTime","CRSDepTime","CRSArrTime","UniqueCarrierIndx","CRSElapsedTime","DepDelay","OriginIndx","DestIndx","Distance","TaxiOut"))
       .setOutputCol("features")*/
 
-    val assembler = new VectorAssembler()
-      .setInputCols(Array("Month","DayOfMonth","DayOfWeek","CRSDepTime","CRSArrTime"))
-      .setOutputCol("features")
 
-    flight_dataframe_training = assembler.transform(df3)
     //flight_dataframe_training.show(5,false)
     //df_with_features.show(truncate=false)*/
   }
 
   def RandomForest(): Unit ={
+
+    val assembler = new VectorAssembler()
+      .setInputCols(Array("Month","DayOfMonth","DayOfWeek","CRSDepTime","CRSArrTime"))
+      .setOutputCol("features")
+
+    flight_dataframe_training = assembler.transform(flight_dataframe_training)
 
 
     flight_dataframe_training.printSchema()
