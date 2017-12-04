@@ -1,25 +1,44 @@
 //Dataset files and description
 http://stat-computing.org/dataexpo/2009/the-data.html
+https://www.analyticsvidhya.com/blog/2017/09/common-machine-learning-algorithms/
+https://databricks.com/blog/2015/01/21/random-forests-and-boosting-in-mllib.html
+https://community.hortonworks.com/articles/53903/spark-machine-learning-pipeline-by-example.html
+https://www.cetic.be/IMG/pdf/mlwithspark.pdf
+http://www.business-science.io/business/2017/10/16/sales_backorder_prediction.html
+
+- Spark MLIB
 
 //VARIAVEIS
 
-Year	1987-2008
+// 1 - Primeira transformação dos dados
+
 Month	1-12
 DayofMonth	1-31
 DayOfWeek	1 (Monday) - 7 (Sunday)
+
 DepTime	actual departure time (local, hhmm)
 CRSDepTime	scheduled departure time (local, hhmm)
+DepDelay	departure delay, in minutes
+
+
 CRSArrTime	scheduled arrival time (local, hhmm)
 UniqueCarrier	unique carrier code
 CRSElapsedTime	in minutes
 ArrDelay	arrival delay, in minutes
-DepDelay	departure delay, in minutes
+
 Origin	origin IATA airport code
 Dest	destination IATA airport code
 Distance	in miles
+
 TaxiOut	taxi out time in minutes
 Cancelled	was the flight cancelled?
 CancellationCode	reason for cancellation (A = carrier, B = weather, C = NAS, D = security)
+
+// 2 - Segunda transformação dos dados
+- tirar os voos que foram cancelados
+- tirar o ano dos voos
+- tentar não convergir para mínimos ou máximos locais
+
 
 
 
