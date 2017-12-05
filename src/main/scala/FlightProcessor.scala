@@ -1,6 +1,6 @@
 import org.apache.spark.ml.Pipeline
 import org.apache.spark.ml.evaluation.RegressionEvaluator
-import org.apache.spark.ml.feature.{StringIndexer, VectorAssembler, VectorIndexer}
+import org.apache.spark.ml.feature.{Normalizer, StringIndexer, VectorAssembler, VectorIndexer}
 import org.apache.spark.ml.regression.{RandomForestRegressionModel, RandomForestRegressor}
 import org.apache.spark.sql.functions.udf
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -14,6 +14,8 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
 
   //create some udf functions
   val toInt = udf[Int, String](_.toInt)
+  val hhmmToMin = udf[Int, String](time => (time.toInt/100) * 60 + time.toInt % 100)
+
 
   //Load all data from CSV file and creates the dataframes for training and testing
   def load(training_path : String, test_path:String): Unit ={
@@ -61,9 +63,9 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
       .withColumn("Month", toInt(df("Month")))
       .withColumn("DayOfMonth", toInt(df("DayOfMonth")))
       .withColumn("DayOfWeek", toInt(df("DayOfWeek")))
-      .withColumn("DepTime", toInt(df("DepTime")))
-      .withColumn("CRSDepTime", toInt(df("CRSDepTime")))
-      .withColumn("CRSArrTime", toInt(df("CRSArrTime")))
+      .withColumn("DepTime", hhmmToMin(df("DepTime")))
+      .withColumn("CRSDepTime", hhmmToMin(df("CRSDepTime")))
+      .withColumn("CRSArrTime", hhmmToMin(df("CRSArrTime")))
       .withColumn("CRSElapsedTime", toInt(df("CRSElapsedTime")))
       .withColumn("ArrDelay", toInt(df("ArrDelay")))
       .withColumn("DepDelay", toInt(df("DepDelay")))
@@ -99,10 +101,6 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
     flight_dataframe_training = UniqueCarrierIndx.fit(flight_dataframe_training).transform(flight_dataframe_training)
 
 
-    //Add features column
-    /*val assembler = new VectorAssembler()
-      .setInputCols(Array("Month","DayOfMonth","DayOfWeek","DepTime","CRSDepTime","CRSArrTime","UniqueCarrierIndx","CRSElapsedTime","DepDelay","OriginIndx","DestIndx","Distance","TaxiOut"))
-      .setOutputCol("features")*/
 
 
     //flight_dataframe_training.show(5,false)
@@ -111,21 +109,29 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
 
   def RandomForest(): Unit ={
 
-    val assembler = new VectorAssembler()
+
+    //Add features column
+    /*val assembler = new VectorAssembler()
+      .setInputCols(Array("Month","DayOfMonth","DayOfWeek","DepTime","CRSDepTime","CRSArrTime","UniqueCarrierIndx","CRSElapsedTime","DepDelay","OriginIndx","DestIndx","Distance","TaxiOut"))
+      .setOutputCol("features")*/
+
+
+    /*val assembler = new VectorAssembler()
       .setInputCols(Array("Month","DayOfMonth","DayOfWeek","CRSDepTime","CRSArrTime"))
+      .setOutputCol("features")*/
+    val assembler = new VectorAssembler()
+      .setInputCols(Array("Month","DayOfMonth","DayOfWeek","DepTime","CRSDepTime","CRSArrTime","UniqueCarrierIndx","CRSElapsedTime","DepDelay","OriginIndx","DestIndx","Distance","TaxiOut"))
       .setOutputCol("features")
-
-    flight_dataframe_training = assembler.transform(flight_dataframe_training)
-
-
-    flight_dataframe_training.printSchema()
-    flight_dataframe_training.show(5,false)
 
     val featureIndexer = new VectorIndexer()
       .setInputCol("features")
       .setOutputCol("indexedFeatures")
-      .setMaxCategories(15)
-      .fit(flight_dataframe_training)
+      .setMaxCategories(32)
+
+    val normalizer = new Normalizer()
+      .setInputCol("indexedFeatures")
+      .setOutputCol("normFeatures")
+      .setP(1.0)
 
 
 
@@ -135,11 +141,11 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
     // Train a RandomForest model.
     val rf = new RandomForestRegressor()
       .setLabelCol(targetVariable)
-      .setFeaturesCol("indexedFeatures")
+      .setFeaturesCol("normFeatures")
 
     // Chain indexer and forest in a Pipeline.
     val pipeline = new Pipeline()
-      .setStages(Array(featureIndexer, rf))
+      .setStages(Array(assembler,featureIndexer, normalizer,rf))
 
     // Train model. This also runs the indexer.
     val model = pipeline.fit(trainingData)
@@ -159,8 +165,10 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
     val rmse = evaluator.evaluate(predictions)
     println("Root Mean Squared Error (RMSE) on test data = " + rmse)
 
+    predictions.write.option("header", "true").csv("/home/danielreis/Desktop/bigdata/res.csv")
     val rfModel = model.stages(1).asInstanceOf[RandomForestRegressionModel]
     println("Learned regression forest model:\n" + rfModel.toDebugString)
+
 
   }
 
