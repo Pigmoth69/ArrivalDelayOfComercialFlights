@@ -11,7 +11,8 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
   import spark.implicits._
   var flight_dataframe_training : DataFrame = null
   var flight_dataframe_test : DataFrame = null
-
+  var training_percentage: Double = 0.1
+  var test_percentage: Double = 0.05
   //create some udf functions
   val toInt = udf[Int, String](_.toInt)
   val hhmmToMin = udf[Int, String](time => (time.toInt/100) * 60 + time.toInt % 100)
@@ -36,6 +37,8 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
   }
   def load(file :String, training_percentage :Double,test_percentage :Double, seed :Long): Unit ={
 
+    this.test_percentage=test_percentage
+    this.training_percentage=training_percentage
     val flights_df = spark.read
       .format("csv")
       .option("header", "true")
@@ -136,7 +139,7 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
 
 
     // Split the data into training and test sets (30% held out for testing).
-    val Array(trainingData, testData) = flight_dataframe_training.randomSplit(Array(0.7, 0.3))
+    val Array(trainingData, testData) = flight_dataframe_training.randomSplit(Array(training_percentage, test_percentage))
 
     // Train a RandomForest model.
     val rf = new RandomForestRegressor()
