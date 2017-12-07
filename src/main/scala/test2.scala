@@ -12,10 +12,10 @@ object test2 {
 
     val fp = new FlightProcessor(spark,"ArrDelay")
 
-    fp.load(FileExplorer.flights_2008,0.7,0.3,102059L)
+    fp.load(FileExplorer.flights_2006,0.7,0.3,102059L)
 
     fp.transformDataframe()
-    fp.RandomForest()
+    fp.RandomForest2()
   }
 
 }

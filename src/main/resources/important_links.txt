@@ -53,3 +53,61 @@ WeatherDelay
 NASDelay
 SecurityDelay
 LateAircraftDelay
+
+
+//mysql
+
+select * from `2008` limit 1
+
+SELECT DATE("2013-12-31 12:45:00")
+
+/*Requirement: All the order by columns should be Int and DepTime not have "NA" values* and ArrDelay should be without "NA" too*/
+
+select
+Year,Month,DayOfMonth,DayOfWeek,DepTime,ArrDelay
+FROM `2008` where TailNum = "N712SW" ORDER BY Year,Month,DayOfMonth,DepTime ASC limit 10;
+
+delete FROM `2008` WHERE ArrDelay = "NA"
+
+select count(DISTINCT TailNum) from (select * from `2008`LIMIT 100000) as tmp
+
+
+
+select
+    *,
+    CASE
+        WHEN @prev IS NULL then 0
+        WHEN @prev > 0 THEN 1 ELSE 0
+    END as previousWasDelayed,
+    @prev as previous_ArrDelay,
+    @prev := e.ArrDelay as current_ArrDelay
+    /*CASE
+        WHEN e.ArrDelay is not null then 0 else 1 end*/
+from
+    (
+        select
+            @prev := null
+    ) as i,
+    `2008` as e
+WHERE TailNum = "N712SW"
+order by
+    e.Year,e.Month,e.DayOfMonth,e.DepTime ASC;
+
+
+
+select DISTINCT ArrDelay from (select ArrDelay,count(*) as TotalPerDelay FROM `2008` GROUP BY ArrDelay)as Tmp
+
+
+SELECT *,
+       ArrDelay*1.0/(SELECT SUM(ArrDelay) FROM `2008`) AS Probability
+    FROM `2008`
+    GROUP BY ArrDelay DESC
+
+
+
+select * from `2008` LEFT JOIN  (select ArrDelay, count(ArrDelay)/6855029 as Probability from `2008` GROUP BY ArrDelay)AS Tmp on `2008`.ArrDelay=Tmp.ArrDelay
+
+select SUM(ArrDelay) as sum
+
+select count(*) FROM `2008` WHERE ArrDelay=2461
+SELECT count(*) from `2008`
