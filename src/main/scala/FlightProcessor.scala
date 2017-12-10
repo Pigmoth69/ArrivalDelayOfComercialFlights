@@ -1,12 +1,12 @@
 
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
-import org.apache.spark.ml.feature.StringIndexer
+import org.apache.spark.ml.feature.{Normalizer, StandardScaler, StringIndexer, VectorAssembler}
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.mllib.tree.RandomForest
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.mllib.evaluation.RegressionMetrics
+import org.apache.spark.mllib.evaluation.{MulticlassMetrics, RegressionMetrics}
 import org.apache.spark.sql.functions.stddev_pop
 import org.apache.spark.sql.functions.avg
 import org.apache.spark.mllib.stat.Statistics
@@ -20,7 +20,7 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
   var test_percentage: Double = 0.3
   //create some udf functions
   val toInt = udf[Int, String](_.toInt)
-  val hhmmToMin = udf[Int, String](time => (time.toInt/100)/* * 60 + time.toInt % 100*/)
+  val hhmmToMin = udf[Int, String](time => (time.toInt/100) /** 60 + time.toInt % 100*/)
 
 
   //Load all data from CSV file and creates the dataframes for training and testing
@@ -97,8 +97,7 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
         ,"WeatherDelay"
         ,"NASDelay"
         ,"SecurityDelay"
-        ,"LateAircraftDelay")
-      .limit(100000)
+        ,"LateAircraftDelay").limit(5000)
 
 
 
@@ -152,7 +151,6 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
     val CRSDepTimeIndx = new StringIndexer().setInputCol("CRSDepTime").setOutputCol("CRSDepTimeIndx")
 
 
-
     flight_dataframe_training = MonthIndx.fit(flight_dataframe_training).transform(flight_dataframe_training)
     flight_dataframe_training = DayOfMonthIndx.fit(flight_dataframe_training).transform(flight_dataframe_training)
     flight_dataframe_training = DayOfWeekIndx.fit(flight_dataframe_training).transform(flight_dataframe_training)
@@ -160,11 +158,6 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
     flight_dataframe_training = DestIndx.fit(flight_dataframe_training).transform(flight_dataframe_training)
     flight_dataframe_training = UniqueCarrierIndx.fit(flight_dataframe_training).transform(flight_dataframe_training)
     flight_dataframe_training = CRSDepTimeIndx.fit(flight_dataframe_training).transform(flight_dataframe_training)
-
-
-
-
-
 
   }
 
@@ -229,28 +222,59 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
 
   def RandomForest2(): Unit ={
 
-    /*val assembler = new VectorAssembler()
+    //Normalize continuous values
+    val assembler1 = new VectorAssembler()
+      .setInputCols(Array(
+        "DepDelay",
+        "MeanArrDelay",
+        "Distance",
+        "TaxiOut"
+      ))
+      .setOutputCol("contValues")
+
+    flight_dataframe_training = assembler1.transform(flight_dataframe_training)
+
+    val scaler1 = new StandardScaler()
+      .setInputCol("contValues")
+      .setOutputCol("contScaledValues")
+      .setWithStd(true)
+    flight_dataframe_training = scaler1.fit(flight_dataframe_training).transform(flight_dataframe_training)
+
+
+    val assembler2 = new VectorAssembler()
       .setInputCols(Array(
         "MonthIndx",
         "DayOfMonthIndx",
         "DayOfWeekIndx",
-        "CRSDepTime",
-        "CRSArrTime",
         "UniqueCarrierIndx",
-        "CRSElapsedTime",
-        "DepDelay",
         "OriginIndx",
         "DestIndx",
-        "Distance",
-        "TaxiOut",
-        "MeanArrDelay",
-        "CRSDepTimeIndx"
-      ))
-      .setOutputCol("features")
+        "CRSDepTimeIndx",
+        "CRSElapsedTime",
+        "contScaledValues"))
+      .setOutputCol("rawfeatures")
 
-      flight_dataframe_training = assembler.transform(flight_dataframe_training)*/
+    /*"MonthIndx",
+        "DayOfMonthIndx",
+        "DayOfWeekIndx",
+        "UniqueCarrierIndx",
+        "OriginIndx",
+        "DestIndx",
+        "CRSDepTimeIndx",
+        "CRSElapsedTime",
+        "DepDelay",       // continuous
+        "MeanArrDelay",   // continuous
+        "Distance",       //countinuous
+        "TaxiOut"         //countinuous
+        */
 
+      flight_dataframe_training = assembler2.transform(flight_dataframe_training)
 
+    /*val normalizer = new Normalizer()
+      .setInputCol("rawfeatures")
+      .setOutputCol("finalFeatures")
+      .setP(1.0)
+    flight_dataframe_training = normalizer.transform(flight_dataframe_training)*/
 
     flight_dataframe_training.printSchema()
 
@@ -271,19 +295,18 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
     val CRSDepTimeIndx = flight_dataframe_training.select("CRSDepTimeIndx").distinct().count().toInt
     flight_dataframe_training.show(5,false)
 
-
-
-
-    /*val labeled = flight_dataframe_training.rdd.map(row =>
-      if(row.getAs[Any]("features").isInstanceOf[org.apache.spark.ml.linalg.DenseVector])
-        LabeledPoint(row.getAs[Integer]("ArrDelay").toDouble,Vectors.dense(row.getAs[org.apache.spark.ml.linalg.DenseVector]("features").values))
-      else
-        LabeledPoint(row.getAs[Integer]("ArrDelay").toDouble,Vectors.dense(row.getAs[org.apache.spark.ml.linalg.SparseVector]("features").toDense.values)))*/
-
-
     flight_dataframe_training.printSchema()
 
-    val labeled = flight_dataframe_training.rdd.map(row => LabeledPoint(row.getAs[Integer]("ArrDelay").toDouble,
+
+    val labeled = flight_dataframe_training.rdd.map(row =>
+      if(row.getAs[Any]("rawfeatures").isInstanceOf[org.apache.spark.ml.linalg.DenseVector])
+        LabeledPoint(row.getAs[Integer]("ArrDelay").toDouble,Vectors.dense(row.getAs[org.apache.spark.ml.linalg.DenseVector]("rawfeatures").values))
+      else
+        LabeledPoint(row.getAs[Integer]("ArrDelay").toDouble,Vectors.dense(row.getAs[org.apache.spark.ml.linalg.SparseVector]("rawfeatures").toDense.values)))
+
+
+
+    /*val labeled = flight_dataframe_training.rdd.map(row => LabeledPoint(row.getAs[Integer]("ArrDelay").toDouble,
       Vectors.dense(Array(
         row.getAs[Double]("MonthIndx"),
         row.getAs[Double]("DayOfMonthIndx"),
@@ -297,40 +320,37 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
         row.getAs[Double]("MeanArrDelay"),
         row.getAs[Integer]("Distance").toDouble,
         row.getAs[Integer]("TaxiOut").toDouble
-      ))))
+      ))))*/
 
     println(labeled.first().features)
 
 
-    //labeled.map(lp => lp.features)
     // Split the data into training and test sets (30% held out for testing).
     val Array(trainingData, testData) = labeled.randomSplit(Array(0.7, 0.3))
 
+    testData.take(50).foreach(x => println(s"LABEL -> ${x.label} FEATURES-> ${x.features}"))
+    print("-------------------------------------------------------------------------------------------------------------------------------")
 
-    //Categories:
-    //Month,DayOfMonth,DayOfWeek,UniqueCarrierIndx,OriginIndx,DestIndx
 
     // Train a RandomForest model.
     // Empty categoricalFeaturesInfo indicates all features are continuous.
-    val categoricalFeaturesInfo = Map[Int, Int]((0,12/*MonthIndx*/),(1,31/*DayOfMonthIndx*/),(2,7/*DayOfWeekIndx*/),(5,numUniqueCarrierIndx),(6,numOriginIndx),(7,numDestIndx),(8,CRSDepTimeIndx))
-    val numTrees = 10 // Use more in practice.
+    val categoricalFeaturesInfo = Map[Int, Int]((0,12/*MonthIndx*/),(1,31/*DayOfMonthIndx*/),(2,7/*DayOfWeekIndx*/),(3,numUniqueCarrierIndx),(4,numOriginIndx),(5,numDestIndx),(6,CRSDepTimeIndx))
+    val numTrees = 50 // Use more in practice.
     val featureSubsetStrategy = "auto" // Let the algorithm choose.
     val impurity = "variance"
     val maxDepth = 9
     val maxBins = 2700
 
 
-    val model = org.apache.spark.mllib.tree.RandomForest.trainRegressor(trainingData,categoricalFeaturesInfo,numTrees,featureSubsetStrategy,impurity,maxDepth,maxBins)
+    val model = org.apache.spark.mllib.tree.RandomForest.trainRegressor(trainingData,categoricalFeaturesInfo,numTrees,featureSubsetStrategy,impurity,maxDepth,maxBins,5149)
 
     // Evaluate model on test instances and compute test error
     val labelAndPreds = testData.map { point =>
       val prediction = model.predict(point.features)
       (point.label, prediction)
     }
-    val testErr
-    = labelAndPreds.filter(r => r._1 != r._2).count.toDouble / testData.count()
-    println("Test Error = " + testErr)
-
+    println("PREDICTIONS-------------------------------------------------------------")
+    labelAndPreds.take(50).foreach(println)
     // Instantiate metrics object
     val metrics = new RegressionMetrics(labelAndPreds)
 
@@ -346,7 +366,6 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
 
     // Explained variance
     println(s"Explained variance = ${metrics.explainedVariance}")
-
     //println("Learned classification forest model:\n" + model.toDebugString)
   }
 
