@@ -25,4 +25,5 @@ object FileExplorer {
   val flights_1987 : String = "/media/danielreis/EXTERNAL_HD/ArrivalDelayOfComercialFlight/1987.csv"
 
   val test : String = "/media/danielreis/EXTERNAL_HD/ArrivalDelayOfComercialFlight/test.txt"
+  val PRINT : String = "/media/danielreis/EXTERNAL_HD/PLOTS/"
 }
