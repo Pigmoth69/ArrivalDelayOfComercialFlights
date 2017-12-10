@@ -105,35 +105,6 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
 
   //Transforms the dataframe(types and indexes) for the machine learning algorithms and add features columns
   def transformDataframe(): Unit ={
-    //Create Indexers
-    /*println("TOTAL ROWS PRE: "+flight_dataframe_training.count())
-
-    import org.apache.spark.sql.expressions.Window
-
-    val w = Window.orderBy().
-    dataset.withColumn("AMOUNT",
-      when($"ID" === lag($"ID", 1).over(w), lag($"AMOUNT", 1).over(w)).otherwise($"AMOUNT")
-    ).show*/
-
-
-    /*flight_dataframe_training.createGlobalTempView("flight")
-
-    println("STATING")
-    val flights = flight_dataframe_training.select("TailNum").distinct().collect()
-    val total_flights = flights.length
-    val df1 :DataFrame = null
-    var c = 1;
-
-    flights.foreach(row => df1.union(spark.sql(s"select *, CASE WHEN @prev IS NULL then 0 WHEN @prev > 0 THEN 1 ELSE 0 END as previousWasDelayed, @prev as previous_ArrDelay, @prev := e.ArrDelay as current_ArrDelay from (select@prev := null) as i,flight as e WHERE TailNum = $row order by e.Year,e.Month,e.DayOfMonth,e.DepTime ASC"))
-    )*/
-
-
-    /*for(row <-  flights){
-      println(s"STATUS: $c of $total_flights")
-      c+=1
-      df1.union(spark.sql(s"select *, CASE WHEN @prev IS NULL then 0 WHEN @prev > 0 THEN 1 ELSE 0 END as previousWasDelayed, @prev as previous_ArrDelay, @prev := e.ArrDelay as current_ArrDelay from (select@prev := null) as i,flight as e WHERE TailNum = $row order by e.Year,e.Month,e.DayOfMonth,e.DepTime ASC"))
-    }*/
-    //flight_dataframe_training = flight_dataframe_training.select("TailNum").distinct()(df1.union(spark.sql("SELECT * FROM where TailNum = $tailNumflight")))
 
     flight_dataframe_training.createOrReplaceTempView("flights")
 
@@ -159,65 +130,6 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
     flight_dataframe_training = UniqueCarrierIndx.fit(flight_dataframe_training).transform(flight_dataframe_training)
     flight_dataframe_training = CRSDepTimeIndx.fit(flight_dataframe_training).transform(flight_dataframe_training)
 
-  }
-
-  def RandomForest(): Unit ={
-
-   /* val assembler = new VectorAssembler()
-      .setInputCols(Array("Month","DayOfMonth","DayOfWeek","DepTime","CRSDepTime","CRSArrTime","UniqueCarrierIndx","CRSElapsedTime","DepDelay","OriginIndx","DestIndx","Distance","TaxiOut"))
-      .setOutputCol("features")
-
-    val featureIndexer = new VectorIndexer()
-      .setInputCol("features")
-      .setOutputCol("indexedFeatures")
-      .setMaxCategories(32)
-
-    val normalizer = new Normalizer()
-      .setInputCol("indexedFeatures")
-      .setOutputCol("normFeatures")
-      .setP(1.0)
-
-
-
-    // Split the data into training and test sets (30% held out for testing).
-    val Array(trainingData, testData) = flight_dataframe_training.randomSplit(Array(training_percentage, test_percentage))
-
-
-    // Train a RandomForest model.
-    val rf = new RandomForestRegressor()
-      .setLabelCol(targetVariable)
-      .setFeaturesCol("normFeatures")
-      .setMaxBins(2700)
-      .setImpurity("variance")
-      .setFeatureSubsetStrategy("auto")
-      .setMaxDepth(9)
-
-
-    // Chain indexer and forest in a Pipeline.
-    val pipeline = new Pipeline()
-      .setStages(Array(assembler,featureIndexer, normalizer,rf))
-
-    // Train model. This also runs the indexer.
-    val model = pipeline.fit(trainingData)
-
-    // Make predictions.
-    val predictions = model.transform(testData)
-
-    // Select example rows to display.
-    predictions.show(5,false)
-
-    // Select (prediction, true label) and compute test error.
-    val evaluator = new RegressionEvaluator()
-      .setLabelCol(targetVariable)
-      .setPredictionCol("prediction")
-      .setMetricName("rmse")
-
-    val rmse = evaluator.evaluate(predictions)
-    println("Root Mean Squared Error (RMSE) on test data = " + rmse)
-
-    predictions.write.option("header", "true").csv("/home/danielreis/Desktop/bigdata/res.csv")
-    val rfModel = model.stages(1).asInstanceOf[RandomForestRegressionModel]
-    println("Learned regression forest model:\n" + rfModel.toDebugString)*/
   }
 
   def RandomForest2(): Unit ={
