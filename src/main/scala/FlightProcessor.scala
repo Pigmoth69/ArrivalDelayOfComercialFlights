@@ -1,20 +1,17 @@
-
-import explorer.FileExplorer
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.apache.spark.ml.feature.{StandardScaler, StringIndexer, VectorAssembler}
+import org.apache.spark.sql.{DataFrame,  SparkSession}
+import org.apache.spark.ml.feature.{ StandardScaler, StringIndexer, VectorAssembler}
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.mllib.evaluation.RegressionMetrics
+import org.apache.spark.mllib.evaluation.{RegressionMetrics}
 import org.apache.spark.rdd.RDD
-import org.jfree.chart._
-import org.jfree.data.xy._
+import org.jfree.chart.{ChartFactory, ChartFrame}
+import org.jfree.data.xy.DefaultXYDataset
 
 class FlightProcessor(spark: SparkSession, targetVariable: String){
 
   //Datasets
   var flight_dataframe_training : DataFrame = null
-  var flight_dataframe_test : DataFrame = null
   var training_percentage: Double = 0.7
   var test_percentage: Double = 0.3
   var seed: Int = 5149
@@ -24,7 +21,6 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
   val toHours = udf[Int, String](time => (time.toInt/100))
 
   //@TODO meter pipelines
-  //@TODO arranjar as funções e meter tudo bonito
 
   //Load all data from CSV file and creates the dataframes
   def load(file :String, training_percentage :Double,test_percentage :Double, seed :Int): Unit ={
@@ -36,9 +32,9 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
     val flights_df = spark.read
       .format("csv")
       .option("header", "true")
-      .load(file).na.drop()
-
+      .load(file)
     flight_dataframe_training = transformCSVFile(flights_df)
+    flight_dataframe_training.na.drop()
   }
 
   //Parses the columns and gives them all the necessary arragements of datatype conversion
@@ -126,7 +122,10 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
       .setInputCol("contValues")
       .setOutputCol("contScaledValues")
       .setWithStd(true)
-    flight_dataframe_training = scaler1.fit(flight_dataframe_training).transform(flight_dataframe_training)
+
+    val tmp1 = scaler1.fit(flight_dataframe_training)
+    flight_dataframe_training = tmp1.transform(flight_dataframe_training)
+    flight_dataframe_training.printSchema()
 
 
     val assembler2 = new VectorAssembler()
@@ -195,7 +194,6 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
     println(s"Explained variance = ${metrics.explainedVariance}")
   }
 
-
   private def toIntPlot(num: String): Int ={
     try{
       num.toInt
@@ -235,4 +233,5 @@ class FlightProcessor(spark: SparkSession, targetVariable: String){
     frame.pack()
     frame.setVisible(true)
   }
+
 }
